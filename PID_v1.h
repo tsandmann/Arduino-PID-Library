@@ -1,72 +1,159 @@
+/**
+ * \file   PID_v1.h
+ * \author Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
+ * \author Timo Sandmann
+ * \date   04.06.2017
+ * \brief  Arduino PID Library for use with FreeRTOS - Version 1.2.0
+ * \see    https://github.com/br3ttb/Arduino-PID-Library
+ *
+ * based on Arduino PID Library - Version 1.1.1 by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com, licensed under a GPLv3 License
+ */
+
 #ifndef PID_v1_h
 #define PID_v1_h
-#define LIBRARY_VERSION	1.1.1
+#define LIBRARY_VERSION	1.2.0
 
-//Constants used in some of the functions below
-#define AUTOMATIC	1
-#define MANUAL	0
-#define DIRECT  0
-#define REVERSE  1
+#include <cstdint>
 
-
+/**
+ * PID controller class
+ */
 class PID {
 public:
-	//commonly used functions **************************************************************************
-	PID(double*, double*, double*, // * constructor.  links the PID to the Input, Output, and
-			double, double, double, int); //   Setpoint.  Initial tuning parameters are also set here
+	using pid_t = float; /**< datatype for internal storage and calculations, float or double */
 
-	void SetMode(int Mode);   // * sets PID to either Manual (0) or Auto (non-0)
+	/**
+	 * Possible modes for PID controller
+	 */
+	enum class Modes : uint8_t {
+		MANUAL = 0,
+		AUTOMATIC = 1,
+	};
 
-	bool Compute();             // * performs the PID calculation.  it should be
-								//   called every time loop() cycles. ON/OFF and
-								//   calculation frequency can be set using SetMode
-								//   SetSampleTime respectively
+	/**
+	 * \param Input Reference to the input variable to be used
+	 * \param Output Reference to the output variable to be used
+	 * \param Setpoint Reference to the setpoint variable to be used
+	 * \param Kp (P)roportional tuning parameter
+	 * \param Ki (I)ntegral tuning parameter
+	 * \param Kd (D)erivative tuning parameter
+	 * \param Direction true: output will increase when error is positive; false: the opposite
+	 */
+	PID(pid_t& Input, pid_t& Output, pid_t& Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction);
 
-	void SetOutputLimits(double, double); //clamps the output to a specific range. 0-255 by default, but
-										  //it's likely the user will want to change this depending on
-										  //the application
+	/**
+	 * \brief Performs the PID calculation.
+	 * \return Returns true when the output is computed, false when nothing has been done.
+	 * \note Should be called every time loop() cycles. ON/OFF and calculation frequency can be set using SetMode and SetSampleTime respectively.
+	 */
+	bool Compute();
 
-										  //available but not commonly used functions ********************************************************
-	void SetTunings(double, double, // * While most users will set the tunings once in the
-			double);   //   constructor, this function gives the user the option
-					   //   of changing tunings during runtime for Adaptive control
-	void SetControllerDirection(int);// * Sets the Direction, or "Action" of the controller. DIRECT
-									 //   means the output will increase when error is positive. REVERSE
-									 //   means the opposite.  it's very unlikely that this will be needed
-									 //   once it is set in the constructor.
-	void SetSampleTime(int); // * sets the frequency, in Milliseconds, with which
-							 //   the PID calculation is performed.  default is 100
+	/**
+	 * \brief Sets PID to either manual or automatic mode
+	 * \param NewMode Mode to set, Modes::MANUAL or Modes::AUTOMATIC
+	 *
+	 * Allows the controller Mode to be set to manual or automatic when the transition from manual to auto occurs, the controller is automatically initialized.
+	 */
+	void SetMode(const Modes NewMode);
 
-							 //Display functions ****************************************************************
-	double GetKp();			// These functions query the pid for interal values.
-	double GetKi();			//  they were created mainly for the pid front-end,
-	double GetKd();			// where it's important to know what is actually
-	int GetMode();						  //  inside the PID.
-	int GetDirection();					  //
+	/**
+	 * \brief Clamps the output to a specific range
+	 * \param Min Minimum output value
+	 * \param Mac Maximum output value
+	 * \note 0-255 by default
+	 */
+	void SetOutputLimits(const pid_t Min, const pid_t Max);
+
+	/**
+	 * \brief Gives the user the option of changing tunings during runtime for Adaptive control
+	 * \param Kp (P)roportional tuning parameter
+	 * \param Ki (I)ntegral tuning parameter
+	 * \param Kd (D)erivative tuning parameter
+	 *
+	 * This method allows the controller's dynamic performance to be adjusted.
+	 */
+	void SetTunings(const pid_t Kp, const pid_t Ki, const pid_t Kd);
+
+	/**
+	 * \brief Sets the Direction, or "Action" of the controller
+	 * \param Direction true: output will increase when error is positive; false: the opposite
+	 *
+	 * The PID will either be connected to a DIRECT acting process (+Output leads to +Input) or a REVERSE acting process (+Output leads to -Input).
+	 * We need to know which one, because otherwise we may increase the output when we should be decreasing.
+	 */
+	void SetControllerDirection(const bool Direction);
+
+	/**
+	 * \brief Sets the period, in milliseconds, at which the calculation is performed
+	 * \param NewSampleTime Sample time to use in milliseconds
+	 * \note default is 100
+	 */
+	void SetSampleTime(const uint16_t NewSampleTime);
+
+	/**
+	 * Gets the proportional tuning parameter
+	 * \return Kp paramter
+	 */
+	auto GetKp() const {
+		return dispKp;
+	}
+
+	/**
+	 * Gets the integral tuning parameter
+	 * \return Ki paramter
+	 */
+	auto GetKi() const {
+		return dispKi;
+	}
+
+	/**
+	 * Gets the derivative tuning parameter
+	 * \return Kd paramter
+	 */
+	auto GetKd() const {
+		return dispKd;
+	}
+
+	/**
+	 * Gets the mode the controller is in
+	 * \return Currently set mode
+	 */
+	auto GetMode() const {
+		return inAuto ? Modes::AUTOMATIC : Modes::MANUAL;
+	}
+
+	/**
+	 * Gets the direction the controller is operating with
+	 * \return Currently set direction
+	 */
+	auto GetDirection() const {
+		return controllerDirection;
+	}
 
 private:
+	pid_t& myInput; /**< Pointer to the input variable */
+	pid_t& myOutput; /**< Pointer to the output variable */
+	pid_t& mySetpoint; /**< Pointer to the setpoint variable */
+	pid_t outMin, outMax; /**< Min / max values for outputs */
+	pid_t ITerm, lastInput; /**< internal data for I-term and last input value */
+
+	pid_t kp; /**< (P)roportional tuning parameter */
+	pid_t ki; /**< (I)ntegral tuning parameter */
+	pid_t kd; /**< (D)erivative tuning parameter */
+
+	bool inAuto; /**< Mode of controller (automatic or manual) */
+	bool controllerDirection; /**< Direction, or "Action" of the controller. true: direct, false: reverse */
+	uint16_t sampleTime; /**< The period, in milliseconds, at which the calculation is performed */
+	uint32_t lastTime; /**< Timestamp of last PID calculation */
+
+	/* we'll hold on to the tuning parameters in user-entered format for display purposes */
+	pid_t dispKp; /**< (P)roportional tuning parameter as set by user */
+	pid_t dispKi; /**< (I)ntegral tuning parameter as set by user */
+	pid_t dispKd; /**< (D)erivative tuning parameter as set by user */
+
+	/**
+	 * Does all the things that need to happen to ensure a bumpless transfer from manual to automatic mode.
+	 */
 	void Initialize();
-
-	double dispKp;	// * we'll hold on to the tuning parameters in user-entered
-	double dispKi;				//   format for display purposes
-	double dispKd;				//
-
-	double kp;                  // * (P)roportional Tuning Parameter
-	double ki;                  // * (I)ntegral Tuning Parameter
-	double kd;                  // * (D)erivative Tuning Parameter
-
-	int controllerDirection;
-
-	double *myInput;  // * Pointers to the Input, Output, and Setpoint variables
-	double *myOutput; //   This creates a hard link between the variables and the
-	double *mySetpoint; //   PID, freeing the user from having to constantly tell us
-						//   what these values are.  with pointers we'll just know.
-
-	unsigned long lastTime;
-	double ITerm, lastInput;
-
-	unsigned long SampleTime;
-	double outMin, outMax;
-	bool inAuto;
 };
 #endif /* PID_v1_h */

@@ -9,7 +9,7 @@
  * based on Arduino PID Library - Version 1.1.1 by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com, licensed under a GPLv3 License
  */
 
-#include <Arduino_FreeRTOS.h>
+#include <FreeRTOS.h>
 #include <task.h>
 #include "PID_v1.h"
 

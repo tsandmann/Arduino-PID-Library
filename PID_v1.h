@@ -39,7 +39,7 @@ public:
 	 * \param Kd (D)erivative tuning parameter
 	 * \param Direction true: output will increase when error is positive; false: the opposite
 	 */
-	PID(pid_t& Input, pid_t& Output, pid_t& Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction);
+	PID(pid_t &Input, pid_t &Output, pid_t &Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction);
 
 	/**
 	 * \brief Performs the PID calculation.
@@ -131,9 +131,9 @@ public:
 	}
 
 private:
-	pid_t& myInput; /**< Pointer to the input variable */
-	pid_t& myOutput; /**< Pointer to the output variable */
-	pid_t& mySetpoint; /**< Pointer to the setpoint variable */
+	pid_t &myInput; /**< Pointer to the input variable */
+	pid_t &myOutput; /**< Pointer to the output variable */
+	pid_t &mySetpoint; /**< Pointer to the setpoint variable */
 	pid_t outMin, outMax; /**< Min / max values for outputs */
 	pid_t ITerm, lastInput; /**< internal data for I-term and last input value */
 

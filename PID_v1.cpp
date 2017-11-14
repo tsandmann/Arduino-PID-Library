@@ -9,16 +9,16 @@
  * based on Arduino PID Library - Version 1.1.1 by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com, licensed under a GPLv3 License
  */
 
-#include <FreeRTOS.h>
-#include <task.h>
 #include "PID_v1.h"
 
+#include "../../src/timer.h"
 
-PID::PID(pid_t& Input, pid_t& Output, pid_t& Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction) :
+
+PID::PID(pid_t &Input, pid_t &Output, pid_t &Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction) :
 		myInput(Input), myOutput(Output), mySetpoint(Setpoint),	outMin(0), outMax(255), inAuto(false), controllerDirection(Direction), sampleTime(100) {
 	SetTunings(Kp, Ki, Kd);
 
-	const auto ms(xTaskGetTickCount() * static_cast<uint32_t>(portTICK_PERIOD_US) / 1000UL);
+	const auto ms(ctbot::Timer::get_ms());
 	lastTime = ms - sampleTime;
 
 	Initialize();
@@ -29,7 +29,7 @@ bool PID::Compute() {
 		return false;
 	}
 
-	const auto now_ms(xTaskGetTickCount() * static_cast<uint32_t>(portTICK_PERIOD_US) / 1000UL);
+	const auto now_ms(ctbot::Timer::get_ms());
 	const auto timeChange(now_ms - lastTime);
 
 	if (timeChange >= sampleTime) {

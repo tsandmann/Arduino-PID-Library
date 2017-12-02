@@ -3,8 +3,8 @@
  * \author Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
  * \author Timo Sandmann
  * \date   04.06.2017
- * \brief  Arduino PID Library for use with FreeRTOS - Version 1.2.0
- * \see    https://github.com/br3ttb/Arduino-PID-Library
+ * \brief  Arduino PID Library for use in ct-Bot framework - Version 1.2.0
+ * \see    https://github.com/br3ttb/Arduino-Pid-Library
  *
  * based on Arduino PID Library - Version 1.1.1 by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com, licensed under a GPLv3 License
  */
@@ -14,129 +14,129 @@
 #include "../../src/timer.h"
 
 
-PID::PID(pid_t &Input, pid_t &Output, pid_t &Setpoint, const pid_t Kp, const pid_t Ki, const pid_t Kd, const bool Direction) :
-		myInput(Input), myOutput(Output), mySetpoint(Setpoint),	outMin(0), outMax(255), inAuto(false), controllerDirection(Direction), sampleTime(100) {
-	SetTunings(Kp, Ki, Kd);
+Pid::Pid(pid_t& input, pid_t& output, pid_t &setpoint, const pid_t kp, const pid_t ki, const pid_t kd, const bool direction) :
+        input_(input), output_(output), setpoint_(setpoint), out_min_(0), out_max_(255), in_auto_(false), direction_(direction), sample_time_(100) {
+    set_tunings(kp, ki, kd);
 
-	const auto ms(ctbot::Timer::get_ms());
-	lastTime = ms - sampleTime;
+    const auto ms(ctbot::Timer::get_ms());
+    last_time_ = ms - sample_time_;
 
-	Initialize();
+    initialize();
 }
 
-bool PID::Compute() {
-	if (! inAuto) {
-		return false;
-	}
+bool Pid::compute() {
+    if (! in_auto_) {
+        return false;
+    }
 
-	const auto now_ms(ctbot::Timer::get_ms());
-	const auto timeChange(now_ms - lastTime);
+    const auto now_ms(ctbot::Timer::get_ms());
+    const auto time_change(now_ms - last_time_);
 
-	if (timeChange >= sampleTime) {
-		/* Compute all the working error variables */
-		const auto error(mySetpoint - myInput);
-		ITerm += (ki * error);
-		if (ITerm > outMax) {
-			ITerm = outMax;
-		} else if (ITerm < outMin) {
-			ITerm = outMin;
-		}
-		const auto dInput(myInput - lastInput);
+    if (time_change >= sample_time_) {
+        /* Compute all the working error variables */
+        const auto error(setpoint_ - input_);
+        i_term_ += (ki_ * error);
+        if (i_term_ > out_max_) {
+            i_term_ = out_max_;
+        } else if (i_term_ < out_min_) {
+            i_term_ = out_min_;
+        }
+        const auto d_input(input_ - last_input_);
 
-		/* Compute PID output */
-		auto output(kp * error + ITerm - kd * dInput);
+        /* Compute Pid output */
+        auto output(kp_ * error + i_term_ - kd_ * d_input);
 
-		if (output > outMax) {
-			output = outMax;
-		} else if (output < outMin) {
-			output = outMin;
-		}
-		myOutput = output;
+        if (output > out_max_) {
+            output = out_max_;
+        } else if (output < out_min_) {
+            output = out_min_;
+        }
+        output_ = output;
 
-		/* Remember some variables for next time */
-		lastInput = myInput;
-		lastTime = now_ms;
+        /* Remember some variables for next time */
+        last_input_ = input_;
+        last_time_ = now_ms;
 
-		return true;
-	} else {
-		return false;
-	}
+        return true;
+    } else {
+        return false;
+    }
 }
 
-void PID::SetTunings(const pid_t Kp, const pid_t Ki, const pid_t Kd) {
-	if (Kp < 0. || Ki < 0. || Kd < 0.) {
-		return;
-	}
+void Pid::set_tunings(const pid_t kp, const pid_t ki, const pid_t kd) {
+    if (kp < 0.f || ki < 0.f || kd < 0.f) {
+        return;
+    }
 
-	dispKp = Kp;
-	dispKi = Ki;
-	dispKd = Kd;
+    disp_kp_ = kp;
+    disp_ki_ = ki;
+    disp_kd_ = kd;
 
-	const pid_t SampleTimeInSec((static_cast<pid_t>(sampleTime)) / 1000.);
-	kp = Kp;
-	ki = Ki * SampleTimeInSec;
-	kd = Kd / SampleTimeInSec;
+    const pid_t sample_time_s((static_cast<pid_t>(sample_time_)) / 1000.);
+    kp_ = kp;
+    ki_ = ki * sample_time_s;
+    kd_ = kd / sample_time_s;
 
-	if (! controllerDirection) {
-		kp = (0. - kp);
-		ki = (0. - ki);
-		kd = (0. - kd);
-	}
+    if (! direction_) {
+        kp_ = (0. - kp_);
+        ki_ = (0. - ki_);
+        kd_ = (0. - kd_);
+    }
 }
 
-void PID::SetSampleTime(const uint16_t NewSampleTime) {
-	const auto ratio(static_cast<pid_t>(NewSampleTime) / static_cast<pid_t>(sampleTime));
-	ki *= ratio;
-	kd /= ratio;
-	sampleTime = NewSampleTime;
+void Pid::set_sample_time(const uint16_t new_sample_time) {
+    const auto ratio(static_cast<pid_t>(new_sample_time) / static_cast<pid_t>(sample_time_));
+    ki_ *= ratio;
+    kd_ /= ratio;
+    sample_time_ = new_sample_time;
 }
 
-void PID::SetOutputLimits(const pid_t Min, const pid_t Max) {
-	if (Min >= Max) {
-		return;
-	}
-	outMin = Min;
-	outMax = Max;
+void Pid::set_output_limits(const pid_t min, const pid_t max) {
+    if (min >= max) {
+        return;
+    }
+    out_min_ = min;
+    out_max_ = max;
 
-	if (inAuto) {
-		if (myOutput > outMax) {
-			myOutput = outMax;
-		} else if (myOutput < outMin) {
-			myOutput = outMin;
-		}
+    if (in_auto_) {
+        if (output_ > out_max_) {
+            output_ = out_max_;
+        } else if (output_ < out_min_) {
+            output_ = out_min_;
+        }
 
-		if (ITerm > outMax) {
-			ITerm = outMax;
-		} else if (ITerm < outMin) {
-			ITerm = outMin;
-		}
-	}
+        if (i_term_ > out_max_) {
+            i_term_ = out_max_;
+        } else if (i_term_ < out_min_) {
+            i_term_ = out_min_;
+        }
+    }
 }
 
-void PID::SetMode(const Modes NewMode) {
-	const bool newAuto(NewMode == Modes::AUTOMATIC);
-	if (newAuto && ! inAuto) {
-		/* we just went from manual to auto mode */
-		Initialize();
-	}
-	inAuto = newAuto;
+void Pid::set_mode(const Modes new_mode) {
+    const bool new_auto { new_mode == Modes::AUTOMATIC };
+    if (new_auto && ! in_auto_) {
+        /* we just went from manual to auto mode */
+        initialize();
+    }
+    in_auto_ = new_auto;
 }
 
-void PID::Initialize() {
-	ITerm = myOutput;
-	lastInput = myInput;
-	if (ITerm > outMax) {
-		ITerm = outMax;
-	} else if (ITerm < outMin) {
-		ITerm = outMin;
-	}
+void Pid::initialize() {
+    i_term_ = output_;
+    last_input_ = input_;
+    if (i_term_ > out_max_) {
+        i_term_ = out_max_;
+    } else if (i_term_ < out_min_) {
+        i_term_ = out_min_;
+    }
 }
 
-void PID::SetControllerDirection(const bool Direction) {
-	if (inAuto && Direction != controllerDirection) {
-		kp = (0. - kp);
-		ki = (0. - ki);
-		kd = (0. - kd);
-	}
-	controllerDirection = Direction;
+void Pid::set_controller_direction(const bool direction) {
+    if (in_auto_ && direction != direction_) {
+        kp_ = (0. - kp_);
+        ki_ = (0. - ki_);
+        kd_ = (0. - kd_);
+    }
+    direction_ = direction;
 }

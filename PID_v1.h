@@ -87,7 +87,7 @@ public:
     /**
      * @brief Clamps the output to a specific range
      * @param[in] min Minimum output value
-     * @param[in] mac Maximum output value
+     * @param[in] max Maximum output value
      * @note 0-255 by default
      */
     void set_output_limits(const pid_t min, const pid_t max);
@@ -113,7 +113,7 @@ public:
 
     /**
      * @brief Sets the period, in milliseconds, at which the calculation is performed
-     * @param[in] NewSampleTime Sample time to use in milliseconds
+     * @param[in] new_sample_time Sample time to use in milliseconds
      * @note default is 100
      */
     void set_sample_time(const uint16_t new_sample_time);

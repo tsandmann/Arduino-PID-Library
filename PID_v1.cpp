@@ -1,36 +1,32 @@
 /**
- * \file   PID_v1.cpp
- * \author Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
- * \author Timo Sandmann
- * \date   04.06.2017
- * \brief  Arduino PID Library for use in ct-Bot framework - Version 1.2.0
- * \see    https://github.com/br3ttb/Arduino-Pid-Library
+ * @file    PID_v1.cpp
+ * @author  Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
+ * @author  Timo Sandmann
+ * @date    04.06.2017
+ * @brief   PID Library for use with ct-Bot framework
+ * @version 1.2.0
+ * @see     https://github.com/br3ttb/Arduino-PID-Library
  *
  * based on Arduino PID Library - Version 1.1.1 by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com, licensed under a GPLv3 License
  */
 
 #include "PID_v1.h"
 
-#include "../../src/timer.h"
-
 
 Pid::Pid(pid_t& input, pid_t& output, pid_t &setpoint, const pid_t kp, const pid_t ki, const pid_t kd, const bool direction) :
-        input_(input), output_(output), setpoint_(setpoint), out_min_(0), out_max_(255), in_auto_(false), direction_(direction), sample_time_(100) {
+        input_ { input }, output_ { output }, setpoint_ { setpoint }, out_min_ { 0 }, out_max_ { 255 }, in_auto_ { false },
+        direction_ { direction }, sample_time_ { 100 }, last_time_ { 0 } {
     set_tunings(kp, ki, kd);
-
-    const auto ms(ctbot::Timer::get_ms());
-    last_time_ = ms - sample_time_;
 
     initialize();
 }
 
-bool Pid::compute() {
+bool Pid::compute(const uint32_t time_ms) {
     if (! in_auto_) {
         return false;
     }
 
-    const auto now_ms(ctbot::Timer::get_ms());
-    const auto time_change(now_ms - last_time_);
+    const auto time_change(time_ms - last_time_);
 
     if (time_change >= sample_time_) {
         /* Compute all the working error variables */
@@ -55,7 +51,7 @@ bool Pid::compute() {
 
         /* Remember some variables for next time */
         last_input_ = input_;
-        last_time_ = now_ms;
+        last_time_ = time_ms;
 
         return true;
     } else {
@@ -72,15 +68,15 @@ void Pid::set_tunings(const pid_t kp, const pid_t ki, const pid_t kd) {
     disp_ki_ = ki;
     disp_kd_ = kd;
 
-    const pid_t sample_time_s((static_cast<pid_t>(sample_time_)) / 1000.);
+    const pid_t sample_time_s((static_cast<pid_t>(sample_time_)) / static_cast<pid_t>(1000.));
     kp_ = kp;
     ki_ = ki * sample_time_s;
     kd_ = kd / sample_time_s;
 
     if (! direction_) {
-        kp_ = (0. - kp_);
-        ki_ = (0. - ki_);
-        kd_ = (0. - kd_);
+        kp_ = (0.f - kp_);
+        ki_ = (0.f - ki_);
+        kd_ = (0.f - kd_);
     }
 }
 
@@ -134,9 +130,9 @@ void Pid::initialize() {
 
 void Pid::set_controller_direction(const bool direction) {
     if (in_auto_ && direction != direction_) {
-        kp_ = (0. - kp_);
-        ki_ = (0. - ki_);
-        kd_ = (0. - kd_);
+        kp_ = (0.f - kp_);
+        ki_ = (0.f - ki_);
+        kd_ = (0.f - kd_);
     }
     direction_ = direction;
 }
